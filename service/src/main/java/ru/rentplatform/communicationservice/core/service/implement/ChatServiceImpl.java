@@ -18,7 +18,9 @@ import ru.rentplatform.communicationservice.core.dao.repository.MessageRepositor
 import ru.rentplatform.communicationservice.core.service.ChatService;
 
 import java.time.OffsetDateTime;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j

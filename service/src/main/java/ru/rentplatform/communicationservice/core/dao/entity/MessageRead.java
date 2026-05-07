@@ -2,8 +2,8 @@ package ru.rentplatform.communicationservice.core.dao.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.time.OffsetDateTime;
-import java.util.UUID;
 
 @Entity
 @Table(name = "message_reads")
