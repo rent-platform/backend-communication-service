@@ -26,4 +26,6 @@ public interface ChatService {
     void sendSystemMessage(UUID chatId, String text, String messageType, Map<String, Object> payload);
 
     List<Chat> findAllByItemId(UUID itemId);
+
+    void hideChat(UUID chatId, UUID userId);
 }

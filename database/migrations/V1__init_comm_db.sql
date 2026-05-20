@@ -38,6 +38,13 @@ CREATE TABLE message_reads (
 CREATE INDEX message_reads_user_id_idx
     ON message_reads(user_id);
 
+CREATE TABLE chat_hidden (
+    chat_id   UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+    user_id   UUID NOT NULL,
+    hidden_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (chat_id, user_id)
+);
+
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN

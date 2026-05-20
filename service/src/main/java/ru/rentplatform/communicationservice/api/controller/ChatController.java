@@ -75,4 +75,14 @@ public class ChatController {
         UUID senderId = UUID.fromString(jwt.getSubject());
         return chatService.sendMessage(chatId, senderId, request.getText());
     }
+
+    @DeleteMapping("/{chatId}")
+    @Operation(summary = "Скрыть чат",
+            description = "Скрывает чат у текущего пользователя. Старые сообщения перестают отображаться. " +
+                    "При новом сообщении от собеседника чат восстанавливается с новыми сообщениями")
+    public void hideChat(@AuthenticationPrincipal Jwt jwt,
+                         @PathVariable UUID chatId) {
+        UUID userId = UUID.fromString(jwt.getSubject());
+        chatService.hideChat(chatId, userId);
+    }
 }

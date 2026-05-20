@@ -12,6 +12,7 @@ import ru.rentplatform.communicationservice.api.exception.ChatNotFoundException;
 import ru.rentplatform.communicationservice.client.catalog.CatalogClient;
 import ru.rentplatform.communicationservice.client.user.UserClient;
 import ru.rentplatform.communicationservice.core.dao.entity.*;
+import ru.rentplatform.communicationservice.core.dao.repository.ChatHiddenRepository;
 import ru.rentplatform.communicationservice.core.dao.repository.ChatRepository;
 import ru.rentplatform.communicationservice.core.dao.repository.MessageReadRepository;
 import ru.rentplatform.communicationservice.core.dao.repository.MessageRepository;
@@ -20,6 +21,7 @@ import ru.rentplatform.communicationservice.core.service.ChatService;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -34,6 +36,7 @@ public class ChatServiceImpl implements ChatService {
     private final CatalogClient catalogClient;
     private final UserClient userClient;
     private final SimpMessagingTemplate messagingTemplate;
+    private final ChatHiddenRepository chatHiddenRepository;
 
     @Override
     @Transactional
@@ -67,6 +70,10 @@ public class ChatServiceImpl implements ChatService {
                 ? chatRepository.findAllByOwnerId(userId)
                 : chatRepository.findAllByRenterId(userId);
 
+        chats = chats.stream()
+                .filter(c -> !chatHiddenRepository.existsByChatIdAndUserId(c.getId(), userId))
+                .collect(Collectors.toList());
+
         return chats.stream()
                 .map(chat -> buildChatListItemResponse(chat, userId))
                 .sorted((a, b) -> {
@@ -88,11 +95,20 @@ public class ChatServiceImpl implements ChatService {
             throw new ChatAccessDeniedException("Access denied");
         }
 
+        Optional<OffsetDateTime> hiddenAt = chatHiddenRepository.getHiddenAt(chatId, userId);
+
         List<Message> messages;
         if (before != null) {
             messages = messageRepository.findMessagesBefore(chatId, before, limit);
         } else {
             messages = messageRepository.findAllByChatId(chatId);
+        }
+
+        if (hiddenAt.isPresent()) {
+            OffsetDateTime since = hiddenAt.get();
+            messages = messages.stream()
+                    .filter(m -> m.getCreatedAt().isAfter(since))
+                    .collect(Collectors.toList());
         }
 
         return messages.stream()
@@ -108,6 +124,11 @@ public class ChatServiceImpl implements ChatService {
 
         if (!chat.getOwnerId().equals(senderId) && !chat.getRenterId().equals(senderId)) {
             throw new ChatAccessDeniedException("Access denied");
+        }
+
+        UUID receiverId = chat.getOwnerId().equals(senderId) ? chat.getRenterId() : chat.getOwnerId();
+        if (chatHiddenRepository.existsByChatIdAndUserId(chatId, receiverId)) {
+            chatHiddenRepository.unhide(chatId, receiverId);
         }
 
         Message message = Message.builder()
@@ -188,6 +209,25 @@ public class ChatServiceImpl implements ChatService {
     @Transactional(readOnly = true)
     public List<Chat> findAllByItemId(UUID itemId) {
         return chatRepository.findAllByItemId(itemId);
+    }
+
+    @Override
+    @Transactional
+    public void hideChat(UUID chatId, UUID userId) {
+        Chat chat = chatRepository.findById(chatId)
+                .orElseThrow(() -> new ChatNotFoundException("Chat not found"));
+
+        if (!chat.getOwnerId().equals(userId) && !chat.getRenterId().equals(userId)) {
+            throw new ChatAccessDeniedException("Access denied");
+        }
+
+        ChatHidden hidden = ChatHidden.builder()
+                .id(ChatHiddenId.builder().chatId(chatId).userId(userId).build())
+                .chat(chat)
+                .hiddenAt(OffsetDateTime.now())
+                .build();
+
+        chatHiddenRepository.save(hidden);
     }
 
     private ChatListItemResponse buildChatListItemResponse(Chat chat, UUID userId) {
