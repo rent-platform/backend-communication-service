@@ -19,4 +19,10 @@ public class RestClientConfig {
             @Value("${app.user-service-url:http://localhost:8081}") String url) {
         return RestClient.create(url);
     }
+
+    @Bean
+    public RestClient auditServiceRestClient(
+            @Value("${app.audit-service-url:http://localhost:8085}") String url) {
+        return RestClient.create(url);
+    }
 }

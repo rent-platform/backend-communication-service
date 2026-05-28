@@ -9,6 +9,7 @@ import ru.rentplatform.communicationservice.api.dto.response.ChatListItemRespons
 import ru.rentplatform.communicationservice.api.dto.response.MessageResponse;
 import ru.rentplatform.communicationservice.api.exception.ChatAccessDeniedException;
 import ru.rentplatform.communicationservice.api.exception.ChatNotFoundException;
+import ru.rentplatform.communicationservice.client.audit.AuditClient;
 import ru.rentplatform.communicationservice.client.catalog.CatalogClient;
 import ru.rentplatform.communicationservice.client.user.UserClient;
 import ru.rentplatform.communicationservice.core.dao.entity.*;
@@ -37,6 +38,7 @@ public class ChatServiceImpl implements ChatService {
     private final UserClient userClient;
     private final SimpMessagingTemplate messagingTemplate;
     private final ChatHiddenRepository chatHiddenRepository;
+    private  final AuditClient auditClient;
 
     @Override
     @Transactional
@@ -59,6 +61,9 @@ public class ChatServiceImpl implements ChatService {
                             .build();
                     return chatRepository.save(newChat);
                 });
+
+        auditClient.sendLog("communication-service", userId, "user",
+                "CREATE_CHAT", "CHAT", chat.getId().toString(), null);
 
         return buildChatListItemResponse(chat, userId);
     }
@@ -148,6 +153,10 @@ public class ChatServiceImpl implements ChatService {
 
         messagingTemplate.convertAndSend("/topic/chat/" + chatId, response);
 
+        auditClient.sendLog("communication-service", senderId, "user",
+                "SEND_MESSAGE", "CHAT", chatId.toString(),
+                "{\"messageId\": \"" + message.getId() + "\"}");
+
         return response;
     }
 
@@ -228,6 +237,9 @@ public class ChatServiceImpl implements ChatService {
                 .build();
 
         chatHiddenRepository.save(hidden);
+
+        auditClient.sendLog("communication-service", userId, "user",
+                "HIDE_CHAT", "CHAT", chatId.toString(), null);
     }
 
     private ChatListItemResponse buildChatListItemResponse(Chat chat, UUID userId) {

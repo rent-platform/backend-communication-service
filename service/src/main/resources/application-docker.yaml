@@ -18,6 +18,7 @@ spring:
 app:
   catalog-service-url: http://catalog-service:8082
   user-service-url: http://user-service:8081
+  audit-service-url: http://audit-service:8085
   swagger:
     gateway-url: http://localhost:8180
     communication-service-url: http://localhost:8184
